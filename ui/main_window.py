@@ -1,26 +1,44 @@
+import sys
+import os
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton, QStackedWidget
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
-import os
 
 from features import merge, split, annotate, compress, convert, ocr
 from ui.merge_ui import MergeWidget
 from ui.pdf_to_image_ui import PdfToImageUI
 from ui.image_to_pdf_ui import ImageToPdfUI
 
+from ui.pdf_viewer_ui import PDFViewerWidget
+from ui.pdf_editor_ui import PdfEditorWidget
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PDF Hero Pro")
         self.setMinimumSize(1000, 700)
-        self.setStyleSheet(open("style.qss", "r").read())
+        self.setMinimumSize(1000, 700)
+        self.load_styles()
         self.init_ui()
+    
+    def load_styles(self):
+        # This handles both dev mode and PyInstaller bundled mode
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS  # PyInstaller extracts temp folder
+        else:
+            base_path = os.path.abspath(".")
+
+        style_path = os.path.join(base_path, "style.qss")
+        if os.path.exists(style_path):
+            with open(style_path, "r") as f:
+                self.setStyleSheet(f.read())
 
     def init_ui(self):
         # Sidebar with buttons
         sidebar = QVBoxLayout()
         tools = [
-            ("Viewer", "view.png", lambda: print("Viewer clicked")),
+            ("Viewer", "view.png", self.load_pdf_viewer),
+            ("Editor PDF", "view.png", self.load_pdf_editor),
             ("Merge", "merge.png", self.load_merge_ui),
             ("Split", "split.png", split.run),
             ("Annotate", "annotate.png", annotate.run),
@@ -28,7 +46,7 @@ class MainWindow(QMainWindow):
             ("Convert", "convert.png", convert.run),
             ("OCR", "ocr.png", ocr.run),
             ("PDF to Image", "convert.png", self.load_pdf_to_image_ui),
-("Image to PDF", "convert.png", self.load_image_to_pdf_ui),
+            ("Image to PDF", "convert.png", self.load_image_to_pdf_ui),
         ]
 
         for name, icon_file, func in tools:
@@ -72,4 +90,20 @@ class MainWindow(QMainWindow):
         widget = PdfToImageUI()
         self.stack.addWidget(widget)
         self.stack.setCurrentWidget(widget)
+  
+    def load_pdf_viewer(self, pdf_path=None):
+        viewer_widget = PDFViewerWidget()
+        self.stack.addWidget(viewer_widget)
+        self.stack.setCurrentWidget(viewer_widget)
 
+        if  pdf_path:
+            viewer_widget.open_pdf_from_path(pdf_path)  # ✅ This loads the passed-in file
+            
+        self.stack.addWidget(viewer_widget)
+        self.stack.setCurrentWidget(viewer_widget)
+
+
+    def load_pdf_editor(self, checked=False):
+        editor_widget = PdfEditorWidget()
+        self.stack.addWidget(editor_widget)
+        self.stack.setCurrentWidget(editor_widget)
