@@ -1,0 +1,22 @@
+QMainWindow {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    font-family: 'Segoe UI';
+}
+
+QPushButton#sidebarButton {
+    background-color: #2d2d2d;
+    color: white;
+    border: none;
+    padding: 10px;
+    text-align: left;
+    font-size: 14px;
+}
+
+QPushButton#sidebarButton:hover {
+    background-color: #444444;
+}
+
+QLabel {
+    color: white;
+}
