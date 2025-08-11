@@ -1,17 +1,14 @@
+import os, sys, tempfile, subprocess
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog,
-    QListWidget, QListWidgetItem, QHBoxLayout, QMessageBox,
-    QListView, QStatusBar, QProgressDialog, QAbstractItemView,
-    QFrame, QStyle, QStyleOptionButton, QApplication, QToolButton
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog,
+    QListWidget, QListWidgetItem, QAbstractItemView, QMessageBox, QProgressDialog,
+    QToolButton, QSizePolicy, QStatusBar, QSpacerItem
 )
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QFont
-from PyQt5.QtCore import Qt, QSize, QRect, QPropertyAnimation
+from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtCore import Qt, QSize
 from PyPDF2 import PdfMerger
 from pdf2image import convert_from_path
-import os
-import sys
-import tempfile
-import subprocess
+from ui.success_dialog import SuccessDialog
 
 class MergeWidget(QWidget):
     def __init__(self):
@@ -24,45 +21,71 @@ class MergeWidget(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        self.setStyleSheet("""
+            QLabel#instructions {
+                border: 2px dashed #b8c7e0;
+                color: #6e7ca0;
+                font-size: 16px; padding: 40px 8px; border-radius: 20px;
+                background: #f9fbff;
+            }
+            QListWidget {
+                background: #fff; border-radius: 12px;
+                padding: 12px 6px 12px 6px; min-height: 180px;
+            }
+            QPushButton, QToolButton {
+                border-radius: 9px; font-size: 15px;
+                padding: 8px 18px;
+            }
+            QPushButton#merge {
+                background: #4e82f1; color: #fff;
+                font-weight: bold;
+            }
+            QPushButton#add { background: #f2f4f8; }
+            QPushButton#removeall { background: #f2f4f8; }
+            QPushButton#toggle { background: #f9e5c5; }
+        """)
 
-        self.instructions = QLabel("🖱️ Drag & drop PDF files here or click to select")
+        layout = QVBoxLayout(self)
+        self.instructions = QLabel("🖱️ <b>Drag & drop PDF files</b> here, or <span style='color:#4e82f1;'>click 'Add PDFs'</span>")
+        self.instructions.setObjectName("instructions")
         self.instructions.setAlignment(Qt.AlignCenter)
-        self.instructions.setStyleSheet("border: 2px dashed #888; padding: 40px; font-size: 16px;")
         layout.addWidget(self.instructions)
 
         self.list_widget = QListWidget()
-        self.list_widget.setViewMode(QListView.IconMode)
-        self.list_widget.setIconSize(QSize(120, 160))
-        self.list_widget.setAcceptDrops(True)
+        self.list_widget.setViewMode(QListWidget.IconMode)
+        self.list_widget.setIconSize(QSize(110, 150))
         self.list_widget.setDragDropMode(QAbstractItemView.InternalMove)
+        self.list_widget.setSpacing(12)
+        self.list_widget.setSelectionMode(QAbstractItemView.NoSelection)
         layout.addWidget(self.list_widget)
 
-        btn_layout = QHBoxLayout()
-
-        self.add_btn = QPushButton("+ Add PDFs")
+        # Button row
+        btn_row = QHBoxLayout()
+        self.add_btn = QPushButton("＋ Add PDFs")
+        self.add_btn.setObjectName("add")
         self.add_btn.clicked.connect(self.add_files)
-        btn_layout.addWidget(self.add_btn)
+        btn_row.addWidget(self.add_btn)
 
         self.remove_all_btn = QPushButton("🗑 Remove All")
+        self.remove_all_btn.setObjectName("removeall")
         self.remove_all_btn.clicked.connect(self.remove_all_files)
-        btn_layout.addWidget(self.remove_all_btn)
+        btn_row.addWidget(self.remove_all_btn)
 
-        self.toggle_btn = QPushButton("🖼 Toggle Preview Mode")
+        self.toggle_btn = QPushButton("🖼 Toggle Preview")
+        self.toggle_btn.setObjectName("toggle")
         self.toggle_btn.clicked.connect(self.toggle_preview_mode)
-        btn_layout.addWidget(self.toggle_btn)
+        btn_row.addWidget(self.toggle_btn)
+
+        btn_row.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
         self.merge_btn = QPushButton("🔗 Merge Now")
+        self.merge_btn.setObjectName("merge")
         self.merge_btn.clicked.connect(self.merge_files)
-        self.merge_btn.setStyleSheet("background-color: #2d89ef; color: white; padding: 10px;")
-        btn_layout.addWidget(self.merge_btn)
+        btn_row.addWidget(self.merge_btn)
 
-        layout.addLayout(btn_layout)
-
+        layout.addLayout(btn_row)
         self.status_bar = QStatusBar()
         layout.addWidget(self.status_bar)
-
-        self.setLayout(layout)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -78,19 +101,22 @@ class MergeWidget(QWidget):
         if files_added:
             self.instructions.hide()
         else:
-            QMessageBox.information(self, "Invalid File", "Please drop only PDF files that are not already added.")
+            QMessageBox.information(self, "Invalid File", "Drop only PDF files not already added.")
 
     def add_files(self):
         files, _ = QFileDialog.getOpenFileNames(self, "Select PDF files", "", "PDF Files (*.pdf)")
         for f in files:
             if f not in self.pdf_paths:
                 self.add_to_list(f)
-        self.instructions.setVisible(self.list_widget.count() == 0)
+        if self.list_widget.count() > 0:
+            self.instructions.hide()
+        else:
+            self.instructions.show()
 
     def add_to_list(self, filepath):
         self.pdf_paths.append(filepath)
         try:
-            images = convert_from_path(filepath, size=(120, 160) if not self.full_preview_mode else None)
+            images = convert_from_path(filepath, size=(110, 150) if not self.full_preview_mode else None)
             image_count = 1 if not self.full_preview_mode else len(images)
             for i in range(image_count):
                 thumb_path = os.path.join(self.temp_dir, f"thumb_{os.path.basename(filepath)}_{i+1}.jpg")
@@ -99,32 +125,30 @@ class MergeWidget(QWidget):
                 pixmap = QPixmap(thumb_path)
 
                 frame = QWidget()
-                h_layout = QVBoxLayout(frame)
-                h_layout.setContentsMargins(5, 5, 5, 5)
-
+                v_layout = QVBoxLayout(frame)
+                v_layout.setContentsMargins(0, 0, 0, 0)
                 icon_label = QLabel()
-                icon_label.setPixmap(pixmap.scaled(120, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                icon_label.setPixmap(pixmap.scaled(110, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation))
                 icon_label.setAlignment(Qt.AlignCenter)
-
                 name_label = QLabel(os.path.basename(filepath))
                 name_label.setAlignment(Qt.AlignCenter)
-                name_label.setFont(QFont("Arial", 8))
-                name_label.setStyleSheet("color: #555;")
+                name_label.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                name_label.setStyleSheet("color: #6073a1;")
 
                 remove_btn = QToolButton()
-                remove_btn.setText("❌")
-                remove_btn.setFixedSize(24, 24)
-                remove_btn.setStyleSheet("QToolButton { border: none; } QToolButton:hover { color: red; }")
+                remove_btn.setText("✖")
+                remove_btn.setFixedSize(22, 22)
+                remove_btn.setStyleSheet("QToolButton { border: none; } QToolButton:hover { color: #e84d4d; background:#fff2f2; }")
                 remove_btn.clicked.connect(lambda _, fp=filepath: self.remove_by_path(fp))
 
-                h_layout.addWidget(icon_label)
-                h_layout.addWidget(name_label)
-                h_layout.addWidget(remove_btn, alignment=Qt.AlignCenter)
+                v_layout.addWidget(icon_label)
+                v_layout.addWidget(name_label)
+                v_layout.addWidget(remove_btn, alignment=Qt.AlignHCenter)
 
                 item = QListWidgetItem()
                 self.list_widget.addItem(item)
                 self.list_widget.setItemWidget(item, frame)
-                item.setSizeHint(frame.sizeHint())
+                item.setSizeHint(QSize(124, 188))
                 item.setData(Qt.UserRole, filepath)
         except Exception as e:
             print(f"Thumbnail error: {e}")
@@ -191,7 +215,7 @@ class MergeWidget(QWidget):
             merger.write(out_path)
             merger.close()
             self.remove_all_files()
-            QMessageBox.information(self, "Success", f"PDFs merged and saved to:\n{out_path}")
+            SuccessDialog(f"PDFs merged and saved to:\n{out_path}").exec_()
             self.status_bar.showMessage(f"✅ Merged PDF saved to: {out_path}", 5000)
             self.open_file(out_path)
 
@@ -205,3 +229,10 @@ class MergeWidget(QWidget):
                 subprocess.call(("xdg-open", path))
         except Exception as e:
             print(f"Could not open file automatically: {e}")
+
+    def closeEvent(self, event):
+        # Clean up thumbnails when the widget is closed
+        for thumb in self.thumb_files:
+            if os.path.exists(thumb):
+                os.remove(thumb)
+        super().closeEvent(event)

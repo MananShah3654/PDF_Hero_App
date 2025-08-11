@@ -1,111 +1,88 @@
+import fitz
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog,
-    QHBoxLayout, QScrollArea, QMessageBox, QSizePolicy
+    QHBoxLayout, QListWidget, QListWidgetItem, QApplication, QSizePolicy
 )
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt
-from pdf2image import convert_from_path
-from PIL import Image
-from PyQt5.QtWidgets import QScrollArea
+from PyQt5.QtCore import Qt, QSize
 
-class PDFViewerWidget(QWidget):
-    def __init__(self):
+class PDFPageWidget(QWidget):
+    def __init__(self, pdf_path, page_num, scale=1.0):
         super().__init__()
-        
-        self.pdf_path = None
-        self.images = []
-        self.zoom_factor = 1.0
+        self.pdf_path = pdf_path
+        self.page_num = page_num
+        self.scale = scale
         self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout()
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        layout.addWidget(self.image_label)
+        self.setLayout(layout)
+        self.render_page()
 
-        # Button Panel
+    def render_page(self):
+        doc = fitz.open(self.pdf_path)
+        page = doc.load_page(self.page_num)
+        mat = fitz.Matrix(self.scale, self.scale)
+        pix = page.get_pixmap(matrix=mat)
+        fmt = QImage.Format_RGBA8888 if pix.alpha else QImage.Format_RGB888
+        qimg = QImage(pix.samples, pix.width, pix.height, pix.stride, fmt)
+        pixmap = QPixmap.fromImage(qimg)
+        pixmap = pixmap.scaledToHeight(800, Qt.SmoothTransformation)
+        self.image_label.setPixmap(pixmap)
+        doc.close()
+
+class PDFViewerWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("PDF Hero - Fast Viewer")
+        self.setMinimumSize(1000, 700)
+        self.pdf_path = None
+        self.doc = None
+        self.scale = 1.0
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
         btn_layout = QHBoxLayout()
 
         open_btn = QPushButton("📂 Open PDF")
         open_btn.clicked.connect(self.open_pdf)
         btn_layout.addWidget(open_btn)
 
-        zoom_in_btn = QPushButton("➕ Zoom In")
-        zoom_in_btn.clicked.connect(self.zoom_in)
-        btn_layout.addWidget(zoom_in_btn)
-
-        zoom_out_btn = QPushButton("➖ Zoom Out")
-        zoom_out_btn.clicked.connect(self.zoom_out)
-        btn_layout.addWidget(zoom_out_btn)
-
         layout.addLayout(btn_layout)
 
-        # Scrollable PDF display
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-
-        self.content_widget = QWidget()
-        self.content_layout = QVBoxLayout()
-        self.content_widget.setLayout(self.content_layout)
-
-        self.scroll_area.setWidget(self.content_widget)
-        layout.addWidget(self.scroll_area)
-
+        self.list_widget = QListWidget()
+        self.list_widget.setSpacing(18)
+        layout.addWidget(self.list_widget)
         self.setLayout(layout)
 
     def open_pdf(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open PDF", "", "PDF Files (*.pdf)")
         if not file_path:
             return
+        self.open_pdf_from_path(file_path)
 
-        try:
-            self.pdf_path = file_path
-            self.images = convert_from_path(file_path, dpi=150)
-            self.zoom_factor = 1.0
-            self.render_all_pages()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not load PDF:\n{str(e)}")
-            self.images = []
+    def open_pdf_from_path(self, pdf_path):
+        self.pdf_path = pdf_path
+        self.doc = fitz.open(self.pdf_path)
+        self.populate_pages()
 
-    def render_all_pages(self):
-        # Clear previous content
-        for i in reversed(range(self.content_layout.count())):
-            widget = self.content_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
+    def populate_pages(self):
+        self.list_widget.clear()
+        for page_num in range(len(self.doc)):
+            item = QListWidgetItem()
+            item.setSizeHint(QSize(800, 900))
+            widget = PDFPageWidget(self.pdf_path, page_num, scale=1.0)
+            self.list_widget.addItem(item)
+            self.list_widget.setItemWidget(item, widget)
 
-        for image in self.images:
-            zoomed = image.resize((
-                int(image.width * self.zoom_factor),
-                int(image.height * self.zoom_factor)
-            )).convert("RGBA")
-
-            qimage = QImage(zoomed.tobytes("raw", "RGBA"), zoomed.width, zoomed.height, QImage.Format_RGBA8888)
-            pixmap = QPixmap.fromImage(qimage)
-
-            label = QLabel()
-            label.setPixmap(pixmap)
-            label.setAlignment(Qt.AlignCenter)
-            label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-            self.content_layout.addWidget(label)
-
-    def zoom_in(self):
-        self.zoom_factor += 0.1
-        self.render_all_pages()
-
-    def zoom_out(self):
-        if self.zoom_factor > 0.2:
-            self.zoom_factor -= 0.1
-            self.render_all_pages()
-            
-def eventFilter(self, obj, event):
-    from PyQt5.QtCore import QEvent
-
-    if obj == self.scroll_area and event.type() == QEvent.Wheel:
-        modifiers = QApplication.keyboardModifiers()
-        if modifiers == Qt.ControlModifier:
-            delta = event.angleDelta().y()
-            if delta > 0:
-                self.zoom_in()
-            else:
-                self.zoom_out()
-            return True  # Event handled
-    return super().eventFilter(obj, event)
+if __name__ == "__main__":
+    import sys
+    app = QApplication(sys.argv)
+    window = PDFViewerWidget()
+    window.showMaximized()
+    sys.exit(app.exec())

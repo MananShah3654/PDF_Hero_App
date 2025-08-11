@@ -1,22 +1,86 @@
 QMainWindow {
-    background-color: #1e1e1e;
-    color: #ffffff;
-    font-family: 'Segoe UI';
+    background-color: qlineargradient(
+        spread:pad,
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 #ff345a, stop:1 #9146ff
+    );
+    color: #fff;
+    font-family: 'Segoe UI', 'Arial', sans-serif;
+    border-radius: 36px;
+}
+
+QWidget#sidebar {
+    background: rgba(255,255,255,0.12);
+    border-radius: 28px;
+    margin: 16px 8px 16px 16px;
 }
 
 QPushButton#sidebarButton {
-    background-color: #2d2d2d;
-    color: white;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
     border: none;
-    padding: 10px;
-    text-align: left;
+    padding: 13px 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: background 0.3s;
+}
+QPushButton#sidebarButton:hover {
+    background: rgba(255,255,255,0.28);
+}
+
+QLabel, QListWidget, QProgressBar, QLineEdit {
+    color: #fff;
+    background: transparent;
+    font-size: 15px;
+}
+
+QProgressBar {
+    border: 1px solid #fff;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.09);
+    height: 22px;
+}
+QProgressBar::chunk {
+    background: qlineargradient(
+        spread:pad, x1:0, y1:0, x2:1, y2:0,
+        stop:0 #ff345a, stop:1 #9146ff
+    );
+    border-radius: 12px;
+}
+
+QListWidget {
+    background: rgba(255,255,255,0.09);
+    border-radius: 11px;
+    border: none;
+    color: #fff;
     font-size: 14px;
 }
-
+QPushButton#sidebarButton {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: none;
+    padding: 13px 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    /* transition removed */
+}
 QPushButton#sidebarButton:hover {
-    background-color: #444444;
+    background: rgba(255,255,255,0.28);
 }
 
-QLabel {
-    color: white;
+QScrollBar::handle:vertical {
+    background: rgba(255,255,255,0.2);
+    min-height: 30px;
+    border-radius: 5px;
+}
+
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
 }

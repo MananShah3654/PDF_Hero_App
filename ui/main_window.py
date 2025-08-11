@@ -6,12 +6,15 @@ from PyQt5.QtCore import QSize
 
 from features import merge, split, annotate, compress, convert, ocr
 from ui.merge_ui import MergeWidget
-from ui.pdf_to_image_ui import PdfToImageUI
-from ui.image_to_pdf_ui import ImageToPdfUI
-
+from ui.image_to_pdf_ui import ImagesToPDFWidget
 from ui.pdf_viewer_ui import PDFViewerWidget
 from ui.pdf_editor_ui import PdfEditorWidget
-
+from ui.compress_ui import PDFCompressorUI
+from ui.pdf_to_image_ui import PDFToJPGWidget
+from ui.virtualized_pdf_viewer import VirtualizedPDFViewer
+from ui.convert_dashboard import ConvertDashboard
+from ui.pdf_to_word_widget import PDFToWordWidget
+ 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -42,10 +45,10 @@ class MainWindow(QMainWindow):
             ("Merge", "merge.png", self.load_merge_ui),
             ("Split", "split.png", split.run),
             ("Annotate", "annotate.png", annotate.run),
-            ("Compress", "compress.png", compress.run),
-            ("Convert", "convert.png", convert.run),
+            ("Compress", "compress.png", self.load_compress_pdf),
+            ("Convert", "convert.png", self.load_convert_dashboard),
             ("OCR", "ocr.png", ocr.run),
-            ("PDF to Image", "convert.png", self.load_pdf_to_image_ui),
+            ("PDF to Image", "convert.png", self.load_pdf_to_jpg_ui),
             ("Image to PDF", "convert.png", self.load_image_to_pdf_ui),
         ]
 
@@ -81,29 +84,75 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(merge_widget)
         self.stack.setCurrentWidget(merge_widget)
 
-    def load_image_to_pdf_ui(self):
-        widget = ImageToPdfUI()
-        self.stack.addWidget(widget)
-        self.stack.setCurrentWidget(widget)
+    # def load_image_to_pdf_ui(self):
+    #     widget = ImageToPdfUI()
+    #     self.stack.addWidget(widget)
+    #     self.stack.setCurrentWidget(widget)
 
-    def load_pdf_to_image_ui(self):
-        widget = PdfToImageUI()
-        self.stack.addWidget(widget)
-        self.stack.setCurrentWidget(widget)
+    # def load_pdf_to_image_ui(self):
+    #     widget = PdfToImageUI()
+    #     self.stack.addWidget(widget)
+    #     self.stack.setCurrentWidget(widget)
   
     def load_pdf_viewer(self, pdf_path=None):
-        viewer_widget = PDFViewerWidget()
+        viewer_widget = VirtualizedPDFViewer()
+        # viewer_widget = PDFViewerWidget()
+
+        if pdf_path:  # ✅ Load PDF immediately if a file path is provided
+            viewer_widget.open_pdf_from_path(pdf_path)
+
         self.stack.addWidget(viewer_widget)
         self.stack.setCurrentWidget(viewer_widget)
 
-        if  pdf_path:
-            viewer_widget.open_pdf_from_path(pdf_path)  # ✅ This loads the passed-in file
-            
-        self.stack.addWidget(viewer_widget)
-        self.stack.setCurrentWidget(viewer_widget)
+         
+        
+        
+# def load_pdf_viewer(self, pdf_path=None):
+#     viewer_widget = PDFViewerWidget()
+#     if pdf_path:
+#         viewer_widget.open_pdf_from_path(pdf_path)
+#     self.stack.addWidget(viewer_widget)
+#     self.stack.setCurrentWidget(viewer_widget)
 
 
     def load_pdf_editor(self, checked=False):
         editor_widget = PdfEditorWidget()
         self.stack.addWidget(editor_widget)
         self.stack.setCurrentWidget(editor_widget)
+
+    def load_compress_pdf(self, checked=False):
+        editor_widget = PDFCompressorUI()
+        self.stack.addWidget(editor_widget)
+        self.stack.setCurrentWidget(editor_widget)
+
+    def load_pdf_to_jpg_ui(self, checked=False):
+        editor_widget = PDFToJPGWidget()
+        self.stack.addWidget(editor_widget)
+        self.stack.setCurrentWidget(editor_widget)
+        
+    def load_image_to_pdf_ui(self, checked=False):
+        editor_widget = ImagesToPDFWidget()
+        self.stack.addWidget(editor_widget)
+        self.stack.setCurrentWidget(editor_widget)
+        
+    def load_convert_dashboard(self):
+        if not hasattr(self, "convert_dashboard"):
+         from ui.convert_dashboard import ConvertDashboard
+        self.convert_dashboard = ConvertDashboard(self)
+        self.stack.addWidget(self.convert_dashboard)
+        self.stack.setCurrentWidget(self.convert_dashboard)
+        
+    def open_converter(self, which):
+        if which == "pdf_to_word":
+            from ui.pdf_to_word_widget import PDFToWordWidget
+            widget = PDFToWordWidget()
+    # ...other converters...
+        else:
+            from PyQt5.QtWidgets import QLabel
+            widget = QLabel("Feature not implemented yet.")
+
+        self.stack.addWidget(widget)
+        self.stack.setCurrentWidget(widget)
+
+    
+

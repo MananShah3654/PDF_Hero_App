@@ -13,7 +13,7 @@ if __name__ == "__main__":
         if os.path.exists(pdf_path) and pdf_path.lower().endswith('.pdf'):
             window.load_pdf_viewer(pdf_path)
 
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec_())
 
     
